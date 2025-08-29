@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claymates Stop Motion Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // Claymates inspired gaming theme
+                        'game-bg': '#0a0e1a',
+                        'game-card': '#1a2332',
+                        'game-card-light': '#243447',
+                        'game-border': '#2a3c52',
+                        'game-cyan': '#4fd1c7',
+                        'game-cyan-dark': '#2dd4bf',
+                        'game-gold': '#fbbf24',
+                        'game-text': '#e5e7eb',
+                        'game-text-dim': '#9ca3af',
+                        'game-accent': '#60a5fa',
+                    },
+                    fontFamily: {
+                        'gaming': ['Orbitron', 'monospace'],
+                        'body': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a2332 100%);
+            color: #e5e7eb;
+        }
+        .gaming-card { 
+            background: linear-gradient(145deg, #1a2332 0%, #243447 100%);
+            border: 1px solid #2a3c52;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+        }
+        .gaming-input, input[type="file"] { 
+            background: #243447 !important;
+            border: 2px solid #2a3c52 !important;
+            color: #e5e7eb !important;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            padding: 12px;
+        }
+        .gaming-input:focus, input[type="file"]:focus {
+            border-color: #4fd1c7 !important;
+            box-shadow: 0 0 0 3px rgba(79, 209, 199, 0.1) !important;
+            outline: none !important;
+        }
+        .gaming-input::placeholder {
+            color: #9ca3af !important;
+        }
+        .gaming-select, select {
+            background: #243447 !important;
+            border: 2px solid #2a3c52 !important;
+            color: #e5e7eb !important;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .gaming-select:focus, select:focus {
+            border-color: #4fd1c7 !important;
+            outline: none !important;
+        }
+        .gaming-select option, select option {
+            background: #243447 !important;
+            color: #e5e7eb !important;
+        }
+        .btn-gaming-primary { 
+            background: linear-gradient(135deg, #4fd1c7 0%, #2dd4bf 100%);
+            color: #0a0e1a;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 8px;
+            padding: 14px 24px;
+            border: none;
+        }
+        .btn-gaming-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 209, 199, 0.3);
+        }
+        .btn-gaming-primary:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+        .btn-gaming-secondary { 
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #0a0e1a;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 14px 24px;
+            border: none;
+        }
+        .progress-bar { 
+            background: #2a3c52;
+            border-radius: 10px;
+            height: 8px;
+        }
+        .progress-fill { 
+            background: linear-gradient(90deg, #4fd1c7 0%, #60a5fa 100%);
+            border-radius: 10px;
+            height: 8px;
+            transition: all 0.5s ease;
+        }
+        .drag-zone {
+            border: 3px dashed #2a3c52;
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .drag-zone.dragover {
+            border-color: #4fd1c7;
+            background: rgba(79, 209, 199, 0.05);
+            transform: scale(1.02);
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(79, 209, 199, 0.5);
+        }
+        .gaming-badge {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #0a0e1a;
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .feature-card {
+            border-left: 3px solid #4fd1c7;
+            background: rgba(79, 209, 199, 0.05);
+            padding: 16px;
+            border-radius: 8px;
+        }
+        .range-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #2a3c52;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+        }
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4fd1c7;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <div class="mb-4">
+                <span class="gaming-badge">Powered by Claymates</span>
+            </div>
+            <h1 class="text-5xl font-gaming font-bold mb-4 glow-text">Stop Motion Studio</h1>
+            <p class="text-game-text-dim text-lg">Transform videos into authentic claymation masterpieces</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid gap-8 lg:grid-cols-3">
+            <!-- Upload & Processing Card -->
+            <div class="gaming-card p-8 lg:col-span-2">
+                <h2 class="text-2xl font-gaming font-semibold mb-6 text-game-cyan">Process Video</h2>
+                
+                <form id="uploadForm" enctype="multipart/form-data" class="space-y-6">
+                    <!-- Drag & Drop Upload Zone -->
+                    <div id="dropZone" class="drag-zone">
+                        <div class="space-y-4">
+                            <div class="text-4xl">🎬</div>
+                            <div>
+                                <p class="text-xl font-medium text-game-cyan mb-2">Drop your video here</p>
+                                <p class="text-game-text-dim">or click to browse</p>
+                                <p class="text-xs text-game-text-dim mt-2">Supports MP4, AVI, MOV, MKV</p>
+                            </div>
+                            <input type="file" id="videoFile" name="file" accept=".mp4,.avi,.mov,.mkv" class="hidden" required>
+                        </div>
+                    </div>
+
+                    <!-- File Info -->
+                    <div id="fileInfo" class="hidden gaming-card p-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="text-2xl">📹</div>
+                            <div>
+                                <p class="font-medium" id="fileName"></p>
+                                <p class="text-sm text-game-text-dim" id="fileSize"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stop Motion Preset -->
+                    <div>
+                        <label class="block text-sm font-medium text-game-cyan mb-3">Animation Style</label>
+                        <select id="preset" name="preset" class="w-full gaming-select">
+                            <option value="custom">🎨 Custom Reduction</option>
+                            <option value="twos">🎭 Classic Claymation (12fps)</option>
+                            <option value="threes">🎪 Stylized Animation (8fps)</option>
+                            <option value="fours">🎨 Artistic Effect (6fps)</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Reduction Factor -->
+                    <div id="customReduction" class="space-y-4">
+                        <label class="block text-sm font-medium text-game-cyan">Frame Reduction</label>
+                        <input type="range" id="reductionRange" name="reduction_factor" min="2" max="10" value="2" class="w-full range-slider">
+                        <div class="flex justify-between text-sm text-game-text-dim">
+                            <span>Keep every <span id="reductionValue" class="text-game-gold font-medium">2nd</span> frame</span>
+                            <span>Higher = More stylized</span>
+                        </div>
+                    </div>
+
+                    <!-- Processing Method -->
+                    <div>
+                        <label class="block text-sm font-medium text-game-cyan mb-3">Stop Motion Style</label>
+                        <select id="processing_method" name="processing_method" class="w-full gaming-select">
+                            <option value="authentic">🎯 Authentic Stop Motion (Held frames)</option>
+                            <option value="classic">⚡ Classic Reduction (Faster processing)</option>
+                        </select>
+                        <p class="text-xs text-game-text-dim mt-2">Authentic creates proper stop motion timing by holding frames</p>
+                    </div>
+
+                    <!-- Quality -->
+                    <div>
+                        <label class="block text-sm font-medium text-game-cyan mb-3">Output Quality</label>
+                        <select id="quality" name="quality" class="w-full gaming-select">
+                            <option value="high">💎 Cinema Quality (Minimal compression)</option>
+                            <option value="medium">⚖️ Balanced (Standard compression)</option>
+                            <option value="low">📱 Web Optimized (High compression)</option>
+                        </select>
+                    </div>
+
+                    <!-- Process Button -->
+                    <button type="submit" class="btn-gaming-primary w-full" id="processBtn">
+                        🎬 Process Video
+                    </button>
+                </form>
+
+                <!-- Progress Bar -->
+                <div id="progressContainer" class="mt-6 hidden">
+                    <div class="flex justify-between text-sm mb-3">
+                        <span class="text-game-cyan font-medium">Processing magic...</span>
+                        <span id="progressText" class="text-game-gold font-medium">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="results" class="mt-6 hidden">
+                    <div class="gaming-card p-6">
+                        <h3 class="font-gaming font-semibold text-game-cyan mb-4">🎉 Animation Complete!</h3>
+                        <div id="resultStats" class="text-sm text-game-text space-y-2 mb-4"></div>
+                        <button id="downloadBtn" class="btn-gaming-secondary w-full">
+                            💾 Download Your Stop Motion Video
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Sidebar -->
+            <div class="space-y-6">
+                <!-- Stop Motion Guide -->
+                <div class="gaming-card p-6">
+                    <h2 class="text-xl font-gaming font-semibold mb-4 text-game-cyan">Animation Guide</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="feature-card">
+                            <h3 class="font-semibold text-game-gold">Classic Claymation</h3>
+                            <p class="text-sm text-game-text-dim mt-1">12fps - Perfect balance of smoothness and authentic stop-motion feel. Used in Wallace & Gromit.</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <h3 class="font-semibold text-game-gold">Stylized Animation</h3>
+                            <p class="text-sm text-game-text-dim mt-1">8fps - More pronounced stop-motion character. Great for artistic projects.</p>
+                        </div>
+                        
+                        <div class="feature-card">
+                            <h3 class="font-semibold text-game-gold">Artistic Effect</h3>
+                            <p class="text-sm text-game-text-dim mt-1">6fps - Highly stylized, dreamlike quality. Perfect for experimental work.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pro Tips -->
+                <div class="gaming-card p-6">
+                    <h3 class="font-gaming font-semibold text-game-cyan mb-4">💡 Pro Tips</h3>
+                    <div class="space-y-3 text-sm text-game-text-dim">
+                        <p><strong class="text-game-gold">Authentic vs Classic:</strong> Authentic holds frames for true stop-motion feel, Classic creates "laggy video" effect</p>
+                        <p><strong class="text-game-gold">Frame Enhancement:</strong> Our algorithm sharpens frames and enhances contrast for crisp stop motion look</p>
+                        <p><strong class="text-game-gold">Timing:</strong> Authentic maintains original video duration with proper frame timing</p>
+                        <p><strong class="text-game-gold">Quality:</strong> Use Cinema quality for final renders, Web for previews</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Drag and drop functionality
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('videoFile');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+
+        // Handle drag and drop
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        });
+
+        // Handle file selection
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                showFileInfo(e.target.files[0]);
+            }
+        });
+
+        function showFileInfo(file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+            fileInfo.classList.remove('hidden');
+        }
+
+        // Update reduction value display
+        const reductionRange = document.getElementById('reductionRange');
+        const reductionValue = document.getElementById('reductionValue');
+        
+        function updateReductionDisplay() {
+            const value = reductionRange.value;
+            const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+            reductionValue.textContent = ordinals[value] || value + 'th';
+        }
+        
+        reductionRange.addEventListener('input', updateReductionDisplay);
+
+        // Handle preset changes
+        const presetSelect = document.getElementById('preset');
+        const customReduction = document.getElementById('customReduction');
+        
+        presetSelect.addEventListener('change', function() {
+            customReduction.style.display = this.value === 'custom' ? 'block' : 'none';
+        });
+
+        // Handle form submission
+        const uploadForm = document.getElementById('uploadForm');
+        const processBtn = document.getElementById('processBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const results = document.getElementById('results');
+        
+        uploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(uploadForm);
+            
+            // Show progress
+            processBtn.disabled = true;
+            processBtn.innerHTML = '🎬 Processing...';
+            progressContainer.classList.remove('hidden');
+            results.classList.add('hidden');
+            
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = Math.round(progress) + '%';
+            }, 500);
+            
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                clearInterval(progressInterval);
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('progressText').textContent = '100%';
+                
+                if (result.success) {
+                    // Show results
+                    const stats = document.getElementById('resultStats');
+                    stats.innerHTML = `
+                        <div class="flex justify-between"><span>Frame Rate:</span><span>${result.results.original_fps.toFixed(1)} → ${result.results.new_fps.toFixed(1)} fps</span></div>
+                        <div class="flex justify-between"><span>Total Frames:</span><span>${result.results.original_frames} → ${result.results.kept_frames}</span></div>
+                        <div class="flex justify-between"><span>Duration:</span><span>${result.results.original_duration.toFixed(1)}s → ${result.results.new_duration.toFixed(1)}s</span></div>
+                        <div class="flex justify-between"><span>File Size:</span><span>${(result.results.compression_ratio * 100).toFixed(1)}% of original</span></div>
+                    `;
+                    
+                    document.getElementById('downloadBtn').onclick = () => {
+                        window.location.href = result.download_url;
+                    };
+                    
+                    results.classList.remove('hidden');
+                } else {
+                    alert('Processing failed: ' + result.error);
+                }
+                
+            } catch (error) {
+                clearInterval(progressInterval);
+                alert('Error: ' + error.message);
+            } finally {
+                processBtn.disabled = false;
+                processBtn.innerHTML = '🎬 Process Video';
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 2000);
+            }
+        });
+
+        // Initialize
+        updateReductionDisplay();
+        customReduction.style.display = 'block';
+    </script>
+</body>
+</html>
