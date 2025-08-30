@@ -6,6 +6,7 @@ import os
 import uuid
 from pathlib import Path
 from video_processor import StopMotionVideoProcessor
+from frame_extractor import FrameExtractor, TimelineProcessor
 
 app = FastAPI(title="Stop Motion Video Processor", version="1.0.0")
 
@@ -19,6 +20,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 processor = StopMotionVideoProcessor()
+extractor = FrameExtractor()
+timeline_processor = TimelineProcessor()
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -38,6 +41,16 @@ async def read_root():
         </body>
         </html>
         """)
+
+@app.get("/timeline-editor", response_class=HTMLResponse)
+async def timeline_editor():
+    """Serve the timeline editor interface."""
+    try:
+        async with aiofiles.open("templates/timeline_editor.html", mode='r', encoding='utf-8') as f:
+            content = await f.read()
+        return HTMLResponse(content=content)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Timeline editor not found")
 
 @app.post("/process")
 async def process_video(
@@ -152,6 +165,85 @@ async def get_info():
         },
         "supported_formats": [".mp4", ".avi", ".mov", ".mkv"]
     }
+
+@app.post("/extract-frames")
+async def extract_frames_for_timeline(
+    file: UploadFile = File(...),
+    reduction_factor: int = Form(3)
+):
+    """Extract frames for timeline editing."""
+    
+    if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
+        raise HTTPException(status_code=400, detail="Unsupported video format")
+    
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    input_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
+    
+    try:
+        # Save uploaded file
+        async with aiofiles.open(input_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Extract frames with thumbnails
+        result = extractor.extract_frames_with_metadata(
+            str(input_path), 
+            reduction_factor
+        )
+        
+        # Add file reference for later processing
+        result['file_id'] = file_id
+        result['original_filename'] = file.filename
+        
+        return result
+        
+    except Exception as e:
+        # Clean up on error
+        if input_path.exists():
+            os.remove(input_path)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/render-custom-timeline")
+async def render_custom_timeline(
+    file_id: str = Form(...),
+    timeline_data: str = Form(...)  # JSON string of timeline config
+):
+    """Render video with custom timeline timing."""
+    
+    try:
+        # Parse timeline data
+        import json
+        timeline_config = json.loads(timeline_data)
+        
+        # Find original file
+        input_files = list(UPLOAD_DIR.glob(f"{file_id}_*"))
+        if not input_files:
+            raise HTTPException(status_code=404, detail="Original file not found")
+        
+        input_path = input_files[0]
+        output_filename = f"{file_id}_custom_timeline.mp4"
+        output_path = OUTPUT_DIR / output_filename
+        
+        # Render with custom timing
+        results = timeline_processor.render_custom_timing(
+            str(input_path),
+            timeline_config,
+            str(output_path),
+            quality='high'
+        )
+        
+        # Clean up input file
+        os.remove(input_path)
+        
+        return {
+            "success": True,
+            "download_url": f"/download/{output_filename}",
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop Motion Timeline Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'editor-bg': '#1a1a1a',
+                        'editor-panel': '#2d2d2d', 
+                        'editor-timeline': '#383838',
+                        'editor-border': '#555555',
+                        'editor-accent': '#4fd1c7',
+                        'editor-text': '#ffffff',
+                        'editor-text-dim': '#b0b0b0',
+                        'editor-selected': '#4fd1c7',
+                        'editor-frame': '#505050'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .editor-layout {
+            display: grid;
+            grid-template-rows: 60px 80px 300px 1fr 100px;
+            height: 100vh;
+        }
+        
+        .toolbar {
+            background: #2d2d2d;
+            border-bottom: 1px solid #555555;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 20px;
+        }
+        
+        .transport-controls {
+            background: #2d2d2d;
+            border-bottom: 1px solid #555555;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        
+        .preview-window {
+            background: #1a1a1a;
+            border-bottom: 1px solid #555555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            padding: 10px;
+        }
+        
+        .preview-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .preview-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #4fd1c7;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .preview-placeholder {
+            text-align: center;
+            color: #b0b0b0;
+        }
+        
+        .timeline-container {
+            background: #383838;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+        }
+        
+        .timeline-track {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            padding: 20px;
+            gap: 4px;
+            min-width: max-content;
+            position: relative;
+        }
+        
+        .playhead {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #ff4444;
+            z-index: 10;
+            pointer-events: none;
+            transition: left 0.1s ease;
+        }
+        
+        .playhead::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: -6px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 10px solid #ff4444;
+        }
+        
+        .timeline-frame {
+            position: relative;
+            background: #505050;
+            border: 2px solid #555555;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .timeline-frame:hover {
+            border-color: #4fd1c7;
+            transform: scale(1.05);
+        }
+        
+        .timeline-frame.selected {
+            border-color: #4fd1c7;
+            box-shadow: 0 0 10px rgba(79, 209, 199, 0.3);
+        }
+        
+        .timeline-frame.disabled {
+            opacity: 0.3;
+            background: #404040;
+        }
+        
+        .frame-thumbnail {
+            width: 80px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .frame-duration {
+            position: absolute;
+            bottom: -20px;
+            font-size: 10px;
+            color: #4fd1c7;
+            font-weight: bold;
+        }
+        
+        .frame-number {
+            position: absolute;
+            top: -20px;
+            font-size: 10px;
+            color: #b0b0b0;
+        }
+        
+        .properties-panel {
+            background: #2d2d2d;
+            border-top: 1px solid #555555;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        
+        .btn-editor {
+            background: #4fd1c7;
+            color: #1a1a1a;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-editor:hover {
+            background: #2dd4bf;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #505050;
+            color: #ffffff;
+            border: 1px solid #555555;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #606060;
+            border-color: #4fd1c7;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .slider-input {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100px;
+            height: 4px;
+            border-radius: 2px;
+            background: #555555;
+            outline: none;
+        }
+        
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4fd1c7;
+            cursor: pointer;
+        }
+        
+        .timecode {
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            color: #4fd1c7;
+            font-weight: bold;
+        }
+        
+        .help-panel {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100vh;
+            background: #2d2d2d;
+            border-left: 1px solid #555555;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .help-panel.open {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-layout">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <h1 class="text-xl font-bold">Stop Motion Timeline</h1>
+            <div class="flex gap-4 ml-auto">
+                <button class="btn-secondary" onclick="toggleHelp()">
+                    <i data-lucide="book-open"></i> Guide
+                </button>
+                <button class="btn-secondary" onclick="showSettings()">
+                    <i data-lucide="settings"></i> Settings
+                </button>
+                <button class="btn-editor" onclick="exportVideo()">
+                    <i data-lucide="download"></i> Export Video
+                </button>
+            </div>
+        </div>
+        
+        <!-- Transport Controls -->
+        <div class="transport-controls">
+            <div class="control-group">
+                <button class="btn-secondary" onclick="playPreview()">
+                    <i data-lucide="play"></i>
+                </button>
+                <button class="btn-secondary" onclick="pausePreview()">
+                    <i data-lucide="pause"></i>
+                </button>
+                <button class="btn-secondary" onclick="previousFrame()">
+                    <i data-lucide="skip-back"></i>
+                </button>
+                <button class="btn-secondary" onclick="nextFrame()">
+                    <i data-lucide="skip-forward"></i>
+                </button>
+            </div>
+            
+            <div class="timecode" id="timecode">00:00.0 / 00:00.0</div>
+            
+            <div class="control-group">
+                <span class="text-sm">Speed:</span>
+                <input type="range" class="slider-input" min="0.1" max="2" step="0.1" value="1" id="playbackSpeed">
+                <span class="text-sm" id="speedDisplay">1.0x</span>
+            </div>
+        </div>
+        
+        <!-- Preview Window -->
+        <div class="preview-window">
+            <div class="preview-placeholder" id="previewPlaceholder">
+                <i data-lucide="film" class="w-12 h-12 mb-2"></i>
+                <p class="text-lg">Video Preview</p>
+                <p class="text-sm">Select a frame in the timeline to preview</p>
+            </div>
+            <img id="previewCanvas" class="preview-canvas hidden" alt="Frame Preview">
+            <div class="preview-overlay hidden" id="previewOverlay">
+                Frame #1 - 2f hold
+            </div>
+        </div>
+        
+        <!-- Timeline -->
+        <div class="timeline-container" id="timelineContainer">
+            <div class="playhead" id="playhead"></div>
+            <div class="timeline-track" id="timelineTrack">
+                <!-- Frames will be populated here -->
+                <div class="text-center text-editor-text-dim w-full">
+                    <p class="text-lg mb-2">
+                        <i data-lucide="upload" class="w-6 h-6 inline mr-2"></i>
+                        Upload a video and select Timeline Editor mode to get started
+                    </p>
+                    <p class="text-sm">Frames will appear here for editing</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Properties Panel -->
+        <div class="properties-panel">
+            <div class="control-group">
+                <span class="text-sm">Selected Frame:</span>
+                <span class="font-bold" id="selectedFrameInfo">None</span>
+            </div>
+            
+            <div class="control-group">
+                <span class="text-sm">Hold Duration:</span>
+                <button class="btn-secondary" onclick="adjustSelectedFrame(-1)">
+                    <i data-lucide="minus"></i>
+                </button>
+                <input type="number" id="holdDurationInput" min="1" max="20" value="2" class="w-16 text-center bg-editor-frame border border-editor-border rounded px-2 py-1">
+                <button class="btn-secondary" onclick="adjustSelectedFrame(1)">
+                    <i data-lucide="plus"></i>
+                </button>
+                <span class="text-sm text-editor-text-dim">frames</span>
+            </div>
+            
+            <div class="control-group">
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" id="includeFrame" checked onchange="toggleSelectedFrame()">
+                    <span class="text-sm">Include in export</span>
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <span class="text-sm">Quick Set:</span>
+                <button class="btn-secondary text-xs" onclick="setSelectedDuration(1)">Fast</button>
+                <button class="btn-secondary text-xs" onclick="setSelectedDuration(2)">Normal</button>
+                <button class="btn-secondary text-xs" onclick="setSelectedDuration(4)">Slow</button>
+                <button class="btn-secondary text-xs" onclick="setSelectedDuration(8)">Hold</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help Panel -->
+    <div class="help-panel" id="helpPanel">
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-editor-accent mb-3 flex items-center gap-2">
+                <i data-lucide="film"></i> Timeline Editor Guide
+            </h3>
+            
+            <div class="space-y-4 text-sm">
+                <div>
+                    <h4 class="font-semibold text-editor-accent">How to Use:</h4>
+                    <ul class="list-disc list-inside space-y-1 text-editor-text-dim">
+                        <li>Click frames to select them</li>
+                        <li>Use +/- buttons to adjust hold duration</li>
+                        <li>Uncheck "Include" to skip frames</li>
+                        <li>Use transport controls to preview</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-editor-accent">Frame Timing:</h4>
+                    <ul class="list-disc list-inside space-y-1 text-editor-text-dim">
+                        <li><strong>1-2 frames:</strong> Fast action (punches, swings)</li>
+                        <li><strong>2-3 frames:</strong> Normal movement</li>
+                        <li><strong>4-6 frames:</strong> Slow, careful motion</li>
+                        <li><strong>6+ frames:</strong> Dramatic pauses, reactions</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold text-editor-accent">Stop Motion Tips:</h4>
+                    <ul class="list-disc list-inside space-y-1 text-editor-text-dim">
+                        <li>Fast actions need fewer frames to feel snappy</li>
+                        <li>Hold key poses longer for emphasis</li>
+                        <li>Vary timing to create natural rhythm</li>
+                        <li>Preview often to check feel</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <button class="btn-secondary w-full" onclick="toggleHelp()">Close Guide</button>
+    </div>
+    
+    <script>
+        // Global variables
+        let timelineData = null;
+        let currentFileId = null;
+        let selectedFrameIndex = -1;
+        let previewInterval = null;
+        let currentPreviewFrame = 0;
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Initialize Lucide icons
+            lucide.createIcons();
+            
+            loadTimelineData();
+            
+            document.getElementById('playbackSpeed').addEventListener('input', function() {
+                document.getElementById('speedDisplay').textContent = this.value + 'x';
+            });
+            
+            document.getElementById('holdDurationInput').addEventListener('change', function() {
+                if (selectedFrameIndex >= 0) {
+                    setSelectedDuration(parseInt(this.value));
+                }
+            });
+        });
+        
+        // Load timeline data from session storage
+        function loadTimelineData() {
+            const storedData = sessionStorage.getItem('timelineData');
+            const storedFileId = sessionStorage.getItem('fileId');
+            
+            if (storedData && storedFileId) {
+                timelineData = JSON.parse(storedData);
+                currentFileId = storedFileId;
+                renderTimeline();
+            } else {
+                // Redirect back to main page if no data
+                window.location.href = '/';
+            }
+        }
+        
+        // Render the timeline with frames
+        function renderTimeline() {
+            const track = document.getElementById('timelineTrack');
+            track.innerHTML = '';
+            
+            if (!timelineData || !timelineData.frames) return;
+            
+            timelineData.frames.forEach((frame, index) => {
+                const frameElement = createTimelineFrame(frame, index);
+                track.appendChild(frameElement);
+            });
+            
+            updateTimecode();
+            
+            // Auto-select first frame if none selected
+            if (selectedFrameIndex < 0 && timelineData.frames.length > 0) {
+                selectFrame(0);
+            }
+        }
+        
+        // Create a timeline frame element
+        function createTimelineFrame(frame, index) {
+            const div = document.createElement('div');
+            div.className = 'timeline-frame';
+            div.dataset.index = index;
+            div.style.width = Math.max(80, frame.hold_duration * 20) + 'px'; // Width based on duration
+            
+            if (!frame.selected) {
+                div.classList.add('disabled');
+            }
+            
+            div.innerHTML = `
+                <div class="frame-number">F${frame.original_frame}</div>
+                <img src="${frame.thumbnail}" class="frame-thumbnail" alt="Frame ${frame.original_frame}">
+                <div class="frame-duration">${frame.hold_duration}f</div>
+            `;
+            
+            div.addEventListener('click', () => selectFrame(index));
+            
+            return div;
+        }
+        
+        // Select a frame
+        function selectFrame(index) {
+            // Remove previous selection
+            document.querySelectorAll('.timeline-frame').forEach(el => el.classList.remove('selected'));
+            
+            // Select new frame
+            const frameElement = document.querySelector(`[data-index="${index}"]`);
+            frameElement.classList.add('selected');
+            
+            selectedFrameIndex = index;
+            const frame = timelineData.frames[index];
+            
+            // Update properties panel
+            document.getElementById('selectedFrameInfo').textContent = `#${frame.original_frame} (${frame.timestamp.toFixed(2)}s)`;
+            document.getElementById('holdDurationInput').value = frame.hold_duration;
+            document.getElementById('includeFrame').checked = frame.selected;
+            
+            // Update preview window
+            updatePreviewWindow(frame);
+            
+            // Update playhead position
+            updatePlayheadPosition(index);
+        }
+        
+        // Update playhead position
+        function updatePlayheadPosition(frameIndex) {
+            const playhead = document.getElementById('playhead');
+            const frameElement = document.querySelector(`[data-index="${frameIndex}"]`);
+            
+            if (frameElement) {
+                const rect = frameElement.getBoundingClientRect();
+                const containerRect = document.getElementById('timelineContainer').getBoundingClientRect();
+                const scrollLeft = document.getElementById('timelineContainer').scrollLeft;
+                
+                // Position playhead at center of selected frame
+                const relativeLeft = rect.left - containerRect.left + scrollLeft + (rect.width / 2);
+                playhead.style.left = relativeLeft + 'px';
+            }
+        }
+        
+        // Update the preview window with current frame
+        function updatePreviewWindow(frame) {
+            const placeholder = document.getElementById('previewPlaceholder');
+            const canvas = document.getElementById('previewCanvas');
+            const overlay = document.getElementById('previewOverlay');
+            
+            if (frame && frame.thumbnail) {
+                // Hide placeholder, show preview
+                placeholder.classList.add('hidden');
+                canvas.classList.remove('hidden');
+                overlay.classList.remove('hidden');
+                
+                // Set frame image
+                canvas.src = frame.thumbnail;
+                
+                // Update overlay info
+                overlay.textContent = `Frame #${frame.original_frame} - ${frame.hold_duration}f hold ${frame.selected ? 'Included' : 'Excluded'}`;
+            } else {
+                // Show placeholder, hide preview
+                placeholder.classList.remove('hidden');
+                canvas.classList.add('hidden');
+                overlay.classList.add('hidden');
+            }
+        }
+        
+        // Helper functions
+        function toggleHelp() {
+            document.getElementById('helpPanel').classList.toggle('open');
+        }
+        
+        function showSettings() {
+            alert('Settings panel coming soon!');
+        }
+        
+        function updateTimecode() {
+            if (!timelineData) return;
+            
+            let totalDuration = 0;
+            timelineData.frames.forEach(frame => {
+                if (frame.selected) {
+                    totalDuration += frame.hold_duration / timelineData.video_metadata.fps;
+                }
+            });
+            
+            const current = currentPreviewFrame / timelineData.video_metadata.fps;
+            document.getElementById('timecode').textContent = 
+                `${formatTime(current)} / ${formatTime(totalDuration)}`;
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = (seconds % 60).toFixed(1);
+            return `${mins.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+        }
+        
+        // Timeline control functions  
+        function playPreview() {
+            if (previewInterval) return; // Already playing
+            
+            // Start from current frame or beginning
+            if (selectedFrameIndex < 0) {
+                selectFrame(0);
+            }
+            
+            let frameIndex = selectedFrameIndex;
+            let frameHoldCount = 0;
+            
+            previewInterval = setInterval(() => {
+                const currentFrame = timelineData.frames[frameIndex];
+                if (!currentFrame || !currentFrame.selected) {
+                    // Skip disabled frames
+                    frameIndex++;
+                    if (frameIndex >= timelineData.frames.length) {
+                        // End of timeline
+                        pausePreview();
+                        return;
+                    }
+                    frameHoldCount = 0;
+                    return;
+                }
+                
+                // Update preview (but don't change timeline selection during playback)
+                updatePreviewWindow(currentFrame);
+                document.getElementById('previewOverlay').textContent = 
+                    `Playing Frame #${currentFrame.original_frame} - Hold ${frameHoldCount + 1}/${currentFrame.hold_duration}`;
+                
+                frameHoldCount++;
+                
+                // Move to next frame after holding for duration
+                if (frameHoldCount >= currentFrame.hold_duration) {
+                    frameIndex++;
+                    frameHoldCount = 0;
+                    
+                    if (frameIndex >= timelineData.frames.length) {
+                        // End of timeline
+                        pausePreview();
+                        // Reset preview to selected frame
+                        if (selectedFrameIndex >= 0) {
+                            updatePreviewWindow(timelineData.frames[selectedFrameIndex]);
+                        }
+                    }
+                }
+                
+            }, 1000 / (timelineData.video_metadata.fps * parseFloat(document.getElementById('playbackSpeed').value)));
+        }
+        
+        function pausePreview() {
+            if (previewInterval) {
+                clearInterval(previewInterval);
+                previewInterval = null;
+                
+                // Reset preview to selected frame
+                if (selectedFrameIndex >= 0) {
+                    updatePreviewWindow(timelineData.frames[selectedFrameIndex]);
+                }
+            }
+        }
+        
+        function previousFrame() {
+            if (selectedFrameIndex > 0) {
+                selectFrame(selectedFrameIndex - 1);
+                currentPreviewFrame = selectedFrameIndex;
+                updateTimecode();
+            }
+        }
+        
+        function nextFrame() {
+            if (selectedFrameIndex < timelineData.frames.length - 1) {
+                selectFrame(selectedFrameIndex + 1);
+                currentPreviewFrame = selectedFrameIndex;
+                updateTimecode();
+            } else {
+                pausePreview(); // Stop at end
+            }
+        }
+        
+        function adjustSelectedFrame(delta) {
+            if (selectedFrameIndex < 0) return;
+            
+            const frame = timelineData.frames[selectedFrameIndex];
+            frame.hold_duration = Math.max(1, Math.min(20, frame.hold_duration + delta));
+            
+            // Update UI
+            document.getElementById('holdDurationInput').value = frame.hold_duration;
+            renderTimeline(); // Re-render to update widths
+            selectFrame(selectedFrameIndex); // Maintain selection
+        }
+        
+        function toggleSelectedFrame() {
+            if (selectedFrameIndex < 0) return;
+            
+            const frame = timelineData.frames[selectedFrameIndex];
+            frame.selected = document.getElementById('includeFrame').checked;
+            
+            renderTimeline();
+            selectFrame(selectedFrameIndex);
+        }
+        
+        function setSelectedDuration(duration) {
+            if (selectedFrameIndex < 0) return;
+            
+            const frame = timelineData.frames[selectedFrameIndex];
+            frame.hold_duration = Math.max(1, Math.min(20, duration));
+            
+            document.getElementById('holdDurationInput').value = frame.hold_duration;
+            renderTimeline();
+            selectFrame(selectedFrameIndex);
+        }
+        
+        async function exportVideo() {
+            if (!timelineData || !currentFileId) {
+                alert('No timeline data to export');
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '📤 Exporting...';
+            
+            const formData = new FormData();
+            formData.append('file_id', currentFileId);
+            formData.append('timeline_data', JSON.stringify({ frames: timelineData.frames }));
+            
+            try {
+                const response = await fetch('/render-custom-timeline', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Trigger download
+                    window.location.href = result.download_url;
+                    
+                    // Show success message
+                    btn.innerHTML = '<i data-lucide="check"></i> Export Complete!';
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        btn.innerHTML = '<i data-lucide="download"></i> Export Video';
+                        lucide.createIcons();
+                        btn.disabled = false;
+                    }, 3000);
+                } else {
+                    alert('Export failed: ' + (result.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="download"></i> Export Video';
+                    lucide.createIcons();
+                }
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="download"></i> Export Video';
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>
